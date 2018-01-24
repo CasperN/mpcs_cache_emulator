@@ -1,0 +1,8 @@
+[package]
+name = "cache_emulator"
+version = "0.1.0"
+authors = ["CasperN <casperneo@uchicago.edu>"]
+
+[dependencies]
+clap = {version = "2.29", features = ["yaml"]}
+rand = "0.3.0"
