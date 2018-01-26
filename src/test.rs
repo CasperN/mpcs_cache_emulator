@@ -1,9 +1,5 @@
-use super::cpu;
-
 #[cfg(test)]
-
-
-
+use super::cpu;
 
 #[test]
 fn test_load_store(){
@@ -12,16 +8,9 @@ fn test_load_store(){
     cpu.store(i,i as f64);
   }
 
-  cpu.print_cache();
-  println!("");
-  println!("{:?}", cpu.parts(56));
-  println!("");
-  cpu.print_ram();
-
-  assert_eq!(cpu.load(56), 56.0);
-  // for i in 0..100 {
-  //   assert_eq!(cpu.load(i), i as f64);
-  // }
+  for i in 0..100 {
+    assert_eq!(cpu.load(i), i as f64);
+  }
 }
 
 #[test]
@@ -40,6 +29,6 @@ fn test_dot_product() {
     cpu.store(16 + i, x);
   }
   for i in 16 .. 24{
-    assert!((cpu.load(i) - 8.0).abs() < 0.00001, cpu.load(i) );
+    assert!((cpu.load(i) - 8.0).abs() < 0.00001, cpu.load(i));
   }
 }

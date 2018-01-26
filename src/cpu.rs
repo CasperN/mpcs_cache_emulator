@@ -1,5 +1,4 @@
 /* Casper Neo. MPCS 52010. Computer Architecture. */
-
 extern crate rand;
 use self::rand::Rng;
 
@@ -45,18 +44,23 @@ pub struct Cpu{
 }
 
 impl Cpu {
-
-  pub fn print_cache(&self){
-    println!("{:?}", self.cache );
-  }
-  pub fn print_ram(&self){
-    println!("{:?}", self.ram);
-  }
-
   pub fn new(cache_size: usize, block_size: usize, associativity: usize,
     replacement: ReplacementPolicy, ram_size: usize) -> Cpu {
-    /* Builds a new CPU
-     */
+    /* Builds a new CPU */
+
+    if block_size % 8 != 0 {
+      warn!("block_size {:?} bytes is not multiple of 8.", block_size);
+    }
+    if ram_size % block_size != 0 {
+      warn!("ram_size {:?} not divisible by block_size {:?}.", ram_size, block_size);
+    }
+    if cache_size % block_size != 0 {
+      warn!("cache_size {:?} not divisible by block_size {:?}", cache_size, block_size);
+    }
+    if (cache_size / block_size) % associativity != 0 {
+      warn!("uneven cache lines per cache set.");
+    }
+
     let ram = Box::new(vec![0.0;ram_size]);
     let cache = Box::new(vec![
       CacheLine {
@@ -84,23 +88,16 @@ impl Cpu {
 
     let tag = address / n_sets / words;
 
-    // println!("address: {:?}", address);
-    // println!("words:\t {:?}", words);
-    // println!("offset:\t {:?}", offset);
-    // println!("ram_line:{:?}", ram_line);
-    // println!("n_sets:\t {:?}", n_sets);
-    // println!("index:\t {:?}", index);
-    // println!("tag:\t {:?}\n", tag);
     (tag, index, offset)
   }
 
-  fn get_cache_idx(&self, tag:usize, set:usize) -> CacheResult {
-    /* returns Hit(line) if (tag,set) in cache else Miss(replacement_line)
+  fn check_cache(&self, tag:usize, index:usize) -> CacheResult {
+    /* Checks if the tag and index is in the cache.
      * the type of self.replacement determines the replacement policy.
      */
-    for line in set * self.associativity .. (set + 1) * self.associativity {
+    for line in index * self.associativity .. (index + 1) * self.associativity {
       if tag == self.cache[line].tag {
-        println!("Hit {:?} at cache line {:?}", (tag,set), line);
+        debug!("Hit {:?} at cache line {:?}", (tag,index), line);
         return Hit(line);
       }
     }
@@ -108,9 +105,9 @@ impl Cpu {
     let replacement = match self.replacement {
 
       ReplacementPolicy::Random => {
-        // Replace a random line in associative set
+        // Replace a random line in associative index
         let r = rand::thread_rng().gen_range(0, self.associativity);
-        let random_line = set * self.associativity + r;
+        let random_line = index * self.associativity + r;
         random_line
       },
 
@@ -119,7 +116,7 @@ impl Cpu {
         let mut lru_time = 0;
         let mut lru_line = 0;
 
-        for line in set * self.associativity .. (set + 1) * self.associativity {
+        for line in index * self.associativity .. (index + 1) * self.associativity {
           if self.cache[line].last_used > lru_time {
             lru_time = self.cache[line].last_used;
             lru_line = line;
@@ -133,7 +130,7 @@ impl Cpu {
         let mut first_time = u64::max_value();
         let mut first_line = 0;
 
-        for line in set * self.associativity .. (set + 1) * self.associativity {
+        for line in index * self.associativity .. (index + 1) * self.associativity {
           if self.cache[line].write_time < first_time {
             first_time = self.cache[line].write_time;
             first_line = line;
@@ -142,24 +139,14 @@ impl Cpu {
         first_line
       }
     };
-    println!("Miss {:?} replacement line {:?}", (tag, set), replacement);
+    debug!("Miss {:?} replacement line {:?}", (tag, index), replacement);
     Miss(replacement)
   }
 
-  fn get_ram_line(&self, address:usize) -> Box<Vec<f64>> {
-    let words = self.block_size / 8;
-    let r = address - address % words;
-    Box::new(self.ram[r .. r + words].to_vec())
-  }
-
-  pub fn load(&mut self, address: usize) -> f64 {
-    // Load from cache if there, else, load from RAM.
-    println!("\nLoading address {:?} ", address);
-
-    self.time += 1;
+  fn load_cache_idx(&mut self, address:usize) -> (usize, usize) {
+    /* Handles cache misses and returns a line and offset thats loaded with the address */
     let (tag, index, offset) = self.parts(address);
-
-    let line = match self.get_cache_idx(tag, index) {
+    let line = match self.check_cache(tag, index) {
       Hit(line) => {
         self.read_hits += 1;
         line
@@ -173,36 +160,31 @@ impl Cpu {
       }
     };
     self.cache[line].last_used = self.time;
-    println!("{:?}",self.cache[line]);
-    let value = self.cache[line].data[offset];
-    // println!("loaded {:?}", value);
-    value
+    (line, offset)
+  }
+
+  fn get_ram_line(&self, address:usize) -> Box<Vec<f64>> {
+    let words = self.block_size / 8;
+    let r = address - address % words;
+    Box::new(self.ram[r .. r + words].to_vec())
+  }
+
+  pub fn load(&mut self, address: usize) -> f64 {
+    // Load from cache if there, else, load from RAM.
+    debug!("\nLoading address {:?} ", address);
+    self.time += 1;
+    let (line, offset) = self.load_cache_idx(address);
+    self.cache[line].data[offset]
   }
 
   pub fn store(&mut self, address: usize, value: f64) {
     // Store value in Ram and load into cache (Write-through with Write-allocate)
-    println!("\nstoring {:?} to {:?}", value, address);
-
+    debug!("\nstoring {:?} to {:?}", value, address);
     self.time += 1;
-    let (tag, index, offset) = self.parts(address);
-
-    let line = match self.get_cache_idx(tag, index) {
-      Hit(line) => {
-        self.write_hits += 1;
-        line
-      },
-      Miss(replacement) => {
-        self.write_misses += 1;
-        self.cache[replacement].data = self.get_ram_line(address);
-        self.cache[replacement].tag = tag;
-        replacement
-      }
-    };
-
+    let (line, offset) = self.load_cache_idx(address);
     self.ram[address] = value; // Write through
     self.cache[line].data[offset] = value;
     self.cache[line].write_time = self.time;
-    self.cache[line].last_used = self.time;
   }
 }
 

@@ -1,6 +1,8 @@
 /* Casper Neo. MPCS 52010. Computer Architecture. */
 
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate clap;
 mod cpu;
 mod algorithms;
