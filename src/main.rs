@@ -4,6 +4,7 @@
 extern crate clap;
 mod cpu;
 mod algorithms;
+mod test;
 
 use clap::App;
 use cpu::Cpu;
@@ -55,7 +56,7 @@ fn main() {
   println!("  algorithm\t{:?}", algorithm);
   println!("  test_size\t{:?}", test_size);
 
-  let test_fn = match algorithm {
+  let lin_alg_fn = match algorithm {
     "dot" => algorithms::dot,
     "mxm" => algorithms::mxm,
     "mxm-block" => algorithms::mxm_block,
@@ -63,7 +64,7 @@ fn main() {
   };
 
   let mut cpu = Cpu::new(cache_size, block_size, associativity, replacement, ram_size);
-  test_fn(&mut cpu, test_size);
+  lin_alg_fn(&mut cpu, test_size);
 
   println!("\nResults:");
   println!("  read hits\t{:?}\n  read misses\t{:?}\n  write hits\t{:?}\n  write misses\t{:?}\n",

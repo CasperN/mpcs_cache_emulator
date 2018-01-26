@@ -11,9 +11,7 @@ pub fn dot(cpu: &mut Cpu, n:usize) {
   let mut res = 0.0;
 
   for i in 0..n {
-    // Array a
     cpu.store(i, rng.next_f64());
-    // Array b
     cpu.store(i + n, rng.next_f64());
   }
   for i in 0..n {
