@@ -2,33 +2,27 @@
 
 #[macro_use]
 extern crate log;
-extern crate pretty_env_logger;
 #[macro_use]
 extern crate clap;
+extern crate pretty_env_logger;
+
+
 mod cpu;
 mod algorithms;
-mod test;
 
 use algorithms::{store_random_numbers, dot, mxm_block, mxm};
 use clap::App;
 use cpu::Cpu;
-/* TODO
-  Flags:
-    --cache-size
-    --block-size
-    --n-assoc
-    --replacement
-*/
 
-fn parse_default<T>(o :Option<&str>, dv:T) -> T
+fn parse_default<T>(option :Option<&str>, default_value:T) -> T
   where T:std::str::FromStr
 {
-  if let Some(s) = o {
-    if let Ok(res) = s.parse::<T>(){
+  if let Some(string) = option {
+    if let Ok(res) = string.parse::<T>(){
       return res
     }
   }
-  dv
+  default_value
 }
 
 fn main() {
@@ -45,7 +39,8 @@ fn main() {
   let replacement = match flags.value_of("replacement").unwrap_or("LRU") {
     "FIFO"   => cpu::ReplacementPolicy::FIFO,
     "random" => cpu::ReplacementPolicy::Random,
-    _        => cpu::ReplacementPolicy::LRU
+    "LRU"    => cpu::ReplacementPolicy::LRU,
+    _ => unreachable!()
   };
   // algorithm related flags
   let test_size = parse_default(flags.value_of("test-size"), 64);
@@ -70,10 +65,11 @@ fn main() {
       store_random_numbers(&mut cpu, 2 * test_size * test_size);
       mxm_block(&mut cpu, test_size, 4);
     },
-    _ => {
+    "mxm" => {
       store_random_numbers(&mut cpu, 2 * test_size * test_size);
       mxm(&mut cpu, test_size);
     }
+    _ => unreachable!()
   };
 
   println!("\nResults:");

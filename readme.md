@@ -15,6 +15,7 @@ Installation: https://www.rust-lang.org/en-US/install.html
 # Usage
 * First change to `cache_emulator` directory
 * To build: `cargo build`
+* To build optimized: `cargo build --release`
 * To test: `cargo test`
 * To Run: `cargo run`
 * To Run with logs: `RUST_LOG=[LOG LEVEL] ./target/debug/cache_emulator [FLAGS]`
@@ -26,6 +27,6 @@ Installation: https://www.rust-lang.org/en-US/install.html
 | `Cargo.lock` | I have no idea what this does. Cargo did it.
 | `src/main.rs` | Entry point to the program: parses flags and runs |
 | `src/cli.yml` | Defines the command line flags |
-| `src/cpu.rs` | Implementation of `cpu` (tests of private functions on the bottom) |
+| `src/cpu.rs` | Implementation of `cpu` |
 | `src/algorithms.rs` | Implementation of dot product, matrix multiply, etc |
-| `src/test.rs` | Tests the CPU and algorithms
+| `analysis.py` | Python file that conducts analysis
