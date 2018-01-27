@@ -167,20 +167,20 @@ impl Cpu {
 
   pub fn load(&mut self, address: usize) -> f64 {
     // Load from cache if there, else, load from RAM.
-    debug!("\nLoading address {:?} ", address);
+    debug!("Loading address {:?} ", address);
     self.time += 1;
     let (line, offset, is_hit) = self.get_cache(address);
-    if is_hit { self.read_hits += 1 } else { self.read_misses += 1}
+    if is_hit { self.read_hits += 1 } else { self.read_misses += 1 }
     self.cache[line].data[offset]
   }
 
   pub fn store(&mut self, address: usize, value: f64) {
     // Store value in Ram and load into cache (Write-through with Write-allocate)
-    debug!("\nStoring {:?} to {:?}", value, address);
+    debug!("Storing {:?} to {:?}", value, address);
     self.time += 1;
     self.ram[address] = value; // Write through
     let (line, offset, is_hit) = self.get_cache(address); // write allocate
-    if is_hit { self.write_hits += 1 } else { self.write_misses += 1}
+    if is_hit { self.write_hits += 1 } else { self.write_misses += 1 }
     self.cache[line].data[offset] = value;
     self.cache[line].write_time = self.time;
   }
@@ -191,7 +191,7 @@ impl Cpu {
 #[test]
 fn test_addressing_fully_associative(){
   // 1 Cache set, 8 Cache lines, 8 words per line
-  let cpu = Cpu::new(512, 64, 8, ReplacementPolicy::LRU, 1000000);
+  let cpu = Cpu::new(512, 64, 8, ReplacementPolicy::LRU, 2048);
   assert_eq!(cpu.parts(0), (0,0,0));
   assert_eq!(cpu.parts(1), (0,0,1));
   assert_eq!(cpu.parts(7), (0,0,7));
@@ -204,7 +204,7 @@ fn test_addressing_fully_associative(){
 #[test]
 fn test_addressing_direct_mapping(){
   // 8 Cache Lines, 8 Cache Sets, 8 words per line
-  let cpu = Cpu::new(512, 64, 1, ReplacementPolicy::LRU, 1000000);
+  let cpu = Cpu::new(512, 64, 1, ReplacementPolicy::LRU, 2048);
   assert_eq!(cpu.parts(0), (0,0,0));
   assert_eq!(cpu.parts(1), (0,0,1));
   assert_eq!(cpu.parts(7), (0,0,7));
@@ -218,11 +218,23 @@ fn test_addressing_direct_mapping(){
 #[test]
 fn test_addressing_2_associative(){
   // 8 Cache Lines, 4 Cache Sets, 8 words per line
-  let cpu = Cpu::new(512, 64, 2, ReplacementPolicy::LRU, 1000000);
+  let cpu = Cpu::new(512, 64, 2, ReplacementPolicy::LRU, 2048);
   assert_eq!(cpu.parts(0), (0,0,0));
   assert_eq!(cpu.parts(7), (0,0,7));
   assert_eq!(cpu.parts(9), (0,1,1));
   assert_eq!(cpu.parts(17), (0,2,1));
   assert_eq!(cpu.parts(50), (1,2,2));
   assert_eq!(cpu.parts(100), (3,0,4));
+}
+
+#[test]
+fn test_load_store(){
+  let mut cpu = Cpu::new(512, 64, 8, ReplacementPolicy::LRU, 128);
+  for i in 0..100 {
+    cpu.store(i,i as f64);
+  }
+
+  for i in 0..100 {
+    assert_eq!(cpu.load(i), i as f64);
+  }
 }

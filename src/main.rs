@@ -9,6 +9,7 @@ mod cpu;
 mod algorithms;
 mod test;
 
+use algorithms::{store_random_numbers, dot, mxm_block, mxm};
 use clap::App;
 use cpu::Cpu;
 /* TODO
@@ -31,6 +32,7 @@ fn parse_default<T>(o :Option<&str>, dv:T) -> T
 }
 
 fn main() {
+  // Required to start logging
   pretty_env_logger::init();
   // Parse flags
   let yaml = load_yaml!("cli.yml");
@@ -57,15 +59,22 @@ fn main() {
   info!("Test Parameters:  algorithm\t{:?}", algorithm);
   info!("Test Parameters:  test_size\t{:?}", test_size);
 
-  let lin_alg_fn = match algorithm {
-    "dot" => algorithms::dot,
-    "mxm" => algorithms::mxm,
-    "mxm-block" => algorithms::mxm_block,
-    _ => unimplemented!(),
-  };
-
   let mut cpu = Cpu::new(cache_size, block_size, associativity, replacement, ram_size);
-  lin_alg_fn(&mut cpu, test_size);
+
+  match algorithm {
+    "dot" => {
+      store_random_numbers(&mut cpu, 2 * test_size);
+      dot(&mut cpu, test_size);
+    },
+    "mxm-block" => {
+      store_random_numbers(&mut cpu, 2 * test_size * test_size);
+      mxm_block(&mut cpu, test_size, 4);
+    },
+    _ => {
+      store_random_numbers(&mut cpu, 2 * test_size * test_size);
+      mxm(&mut cpu, test_size);
+    }
+  };
 
   println!("\nResults:");
   println!("  read hits\t{:?}\n  read misses\t{:?}\n  write hits\t{:?}\n  write misses\t{:?}\n",

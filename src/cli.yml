@@ -40,8 +40,3 @@ args:
         help: "length of vector, or side length of matrix (default 64)"
         short: t
         takes_value: true
-    #
-    # - write-policy:
-    #     help: "What to do on a write"
-    #     short: w
-    #     possible_values: [write-through, write-allocate]
