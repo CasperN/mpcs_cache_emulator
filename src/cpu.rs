@@ -18,12 +18,6 @@ struct CacheLine {
   data: Box<Vec<f64>>
 }
 
-enum CacheResult {
-  Hit(usize),
-  Miss(usize)
-}
-use self::CacheResult::{Hit, Miss};
-
 #[derive(Debug)]
 pub struct Cpu{
   // Parameters
@@ -49,16 +43,20 @@ impl Cpu {
     /* Builds a new CPU */
 
     if block_size % 8 != 0 {
-      warn!("block_size {:?} bytes is not multiple of 8.", block_size);
+      error!("block_size {:?} bytes is not multiple of 8.", block_size);
     }
     if ram_size % block_size != 0 {
-      warn!("ram_size {:?} not divisible by block_size {:?}.", ram_size, block_size);
+      error!("ram_size {:?} not divisible by block_size {:?}.", ram_size, block_size);
     }
     if cache_size % block_size != 0 {
-      warn!("cache_size {:?} not divisible by block_size {:?}", cache_size, block_size);
+      error!("cache_size {:?} not divisible by block_size {:?}", cache_size, block_size);
+    }
+    if (cache_size / block_size) < associativity {
+      error!("associativity {:?} greater than number of cache lines {:?}",
+        associativity, (cache_size / block_size));
     }
     if (cache_size / block_size) % associativity != 0 {
-      warn!("uneven cache lines per cache set.");
+      error!("uneven cache lines per cache set.");
     }
 
     let ram = Box::new(vec![0.0;ram_size]);
@@ -76,7 +74,7 @@ impl Cpu {
         write_hits:0, write_misses:0, time:0, ram, cache}
   }
 
-  pub fn parts(&self, address: usize) -> (usize, usize, usize) {
+  fn parts(&self, address: usize) -> (usize, usize, usize) {
     /* Returns tag, index, and offset numbers from address. */
 
     let words = self.block_size / 8;
@@ -91,21 +89,23 @@ impl Cpu {
     (tag, index, offset)
   }
 
-  fn check_cache(&self, tag:usize, index:usize) -> CacheResult {
+  fn check_cache(&self, tag:usize, index:usize) -> Result<usize,usize> {
     /* Checks if the tag and index is in the cache.
      * the type of self.replacement determines the replacement policy.
+     * Returns Ok(line) if the `tag` is in the cache
+     * Returns Err(replacement) if `tag` is not in cache
      */
     for line in index * self.associativity .. (index + 1) * self.associativity {
       if tag == self.cache[line].tag {
         debug!("Hit {:?} at cache line {:?}", (tag,index), line);
-        return Hit(line);
+        return Ok(line);
       }
     }
 
     let replacement = match self.replacement {
 
       ReplacementPolicy::Random => {
-        // Replace a random line in associative index
+        // Replace a random line in associative set
         let r = rand::thread_rng().gen_range(0, self.associativity);
         let random_line = index * self.associativity + r;
         random_line
@@ -140,27 +140,7 @@ impl Cpu {
       }
     };
     debug!("Miss {:?} replacement line {:?}", (tag, index), replacement);
-    Miss(replacement)
-  }
-
-  fn load_cache_idx(&mut self, address:usize) -> (usize, usize) {
-    /* Handles cache misses and returns a line and offset thats loaded with the address */
-    let (tag, index, offset) = self.parts(address);
-    let line = match self.check_cache(tag, index) {
-      Hit(line) => {
-        self.read_hits += 1;
-        line
-      }
-      Miss(replacement) => {
-        self.read_misses += 1;
-        self.cache[replacement].data = self.get_ram_line(address);
-        self.cache[replacement].tag = tag;
-        self.cache[replacement].write_time = self.time;
-        replacement
-      }
-    };
-    self.cache[line].last_used = self.time;
-    (line, offset)
+    Err(replacement)
   }
 
   fn get_ram_line(&self, address:usize) -> Box<Vec<f64>> {
@@ -169,20 +149,38 @@ impl Cpu {
     Box::new(self.ram[r .. r + words].to_vec())
   }
 
+  fn get_cache(&mut self, address:usize) -> (usize, usize, bool) {
+    /* Handles cache misses and returns a line and offset thats loaded with the address. */
+    let (tag, index, offset) = self.parts(address);
+    let (line, is_hit) = match self.check_cache(tag, index) {
+      Ok(line) => { (line, true) }
+      Err(replacement) => {
+        self.cache[replacement].data = self.get_ram_line(address);
+        self.cache[replacement].tag = tag;
+        self.cache[replacement].write_time = self.time;
+        (replacement, false)
+      }
+    };
+    self.cache[line].last_used = self.time;
+    (line, offset, is_hit)
+  }
+
   pub fn load(&mut self, address: usize) -> f64 {
     // Load from cache if there, else, load from RAM.
     debug!("\nLoading address {:?} ", address);
     self.time += 1;
-    let (line, offset) = self.load_cache_idx(address);
+    let (line, offset, is_hit) = self.get_cache(address);
+    if is_hit { self.read_hits += 1 } else { self.read_misses += 1}
     self.cache[line].data[offset]
   }
 
   pub fn store(&mut self, address: usize, value: f64) {
     // Store value in Ram and load into cache (Write-through with Write-allocate)
-    debug!("\nstoring {:?} to {:?}", value, address);
+    debug!("\nStoring {:?} to {:?}", value, address);
     self.time += 1;
-    let (line, offset) = self.load_cache_idx(address);
     self.ram[address] = value; // Write through
+    let (line, offset, is_hit) = self.get_cache(address); // write allocate
+    if is_hit { self.write_hits += 1 } else { self.write_misses += 1}
     self.cache[line].data[offset] = value;
     self.cache[line].write_time = self.time;
   }

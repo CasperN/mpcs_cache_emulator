@@ -2,6 +2,7 @@
 
 #[macro_use]
 extern crate log;
+extern crate pretty_env_logger;
 #[macro_use]
 extern crate clap;
 mod cpu;
@@ -30,13 +31,14 @@ fn parse_default<T>(o :Option<&str>, dv:T) -> T
 }
 
 fn main() {
+  pretty_env_logger::init();
   // Parse flags
   let yaml = load_yaml!("cli.yml");
   let flags = App::from_yaml(yaml).get_matches();
   // CPU related flags
-  let cache_size = parse_default(flags.value_of("cache_size"), 65536);
-  let block_size = parse_default(flags.value_of("block_size"), 64);
-  let ram_size = parse_default(flags.value_of("ram_size"), 1_048_576);
+  let cache_size = parse_default(flags.value_of("cache-size"), 65536);
+  let block_size = parse_default(flags.value_of("block-size"), 64);
+  let ram_size = parse_default(flags.value_of("ram-size"), 1_048_576);
   let associativity = parse_default(flags.value_of("associativity"), 2);
   let replacement = match flags.value_of("replacement").unwrap_or("LRU") {
     "FIFO"   => cpu::ReplacementPolicy::FIFO,
@@ -44,19 +46,16 @@ fn main() {
     _        => cpu::ReplacementPolicy::LRU
   };
   // algorithm related flags
-  let test_size = parse_default(flags.value_of("test_size"), 64);
+  let test_size = parse_default(flags.value_of("test-size"), 64);
   let algorithm = flags.value_of("algorithm").unwrap_or("mxm");
 
-  println!("\nCPU Parameters:");
-  println!("  cache_size\t{:?}", cache_size);
-  println!("  block_size\t{:?}", block_size);
-  println!("  ram_size\t{:?}", ram_size);
-  println!("  associativity\t{:?}", associativity);
-  println!("  replacement\t{:?}\n", replacement);
-
-  println!("Test Parameters:");
-  println!("  algorithm\t{:?}", algorithm);
-  println!("  test_size\t{:?}", test_size);
+  info!("CPU Parameters:   cache_size\t{:?}", cache_size);
+  info!("CPU Parameters:   block_size\t{:?}", block_size);
+  info!("CPU Parameters:   ram_size\t{:?}", ram_size);
+  info!("CPU Parameters:   associativity\t{:?}", associativity);
+  info!("CPU Parameters:   replacement\t{:?}", replacement);
+  info!("Test Parameters:  algorithm\t{:?}", algorithm);
+  info!("Test Parameters:  test_size\t{:?}", test_size);
 
   let lin_alg_fn = match algorithm {
     "dot" => algorithms::dot,
