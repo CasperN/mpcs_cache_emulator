@@ -7,18 +7,20 @@ MPCS 52010 Computer Architecture \
 2018 February 2
 
 # Analysis
-<!-- TODO -->
+See `analysis.pdf`.
 
 # Rust
 Installation: https://www.rust-lang.org/en-US/install.html
 
 # Usage
 * First change to `cache_emulator` directory
-* To build: `cargo build`
-* To build optimized: `cargo build --release`
+* To build debug version: `cargo build`
+* To build optimized (release) version: `cargo build --release`
 * To test: `cargo test`
 * To Run: `cargo run`
-* To Run with logs: `RUST_LOG=[LOG LEVEL] ./target/debug/cache_emulator [FLAGS]`
+* To Run with logs: `RUST_LOG=[LOG LEVEL] ./target/[VERSION]/cache_emulator [FLAGS]`
+* To run analysis notebook: `jupyter notebook`, use gui to open `analysis.ipynb`
+* To convert analysis to pdf `jupyter nbconvert --to pdf analysis.ipynb`
 
 # Files
 | File | Purpose |
@@ -29,4 +31,4 @@ Installation: https://www.rust-lang.org/en-US/install.html
 | `src/cli.yml` | Defines the command line flags |
 | `src/cpu.rs` | Implementation of `cpu` |
 | `src/algorithms.rs` | Implementation of dot product, matrix multiply, etc |
-| `analysis.py` | Python file that conducts analysis
+| `analysis.ipynb` | IPython notebook that conducts analysis

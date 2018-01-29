@@ -26,6 +26,10 @@ pub struct Cpu{
   pub associativity: usize, // n-way associativity of cache (1 is direct mapped cache)
   pub replacement: ReplacementPolicy,
 
+  // Attributes defined by parameters
+  pub cache_lines: usize,
+  pub words: usize,
+
   // Statistics
   pub read_hits: u64,
   pub read_misses: u64,
@@ -58,33 +62,55 @@ impl Cpu {
     if (cache_size / block_size) % associativity != 0 {
       error!("uneven cache lines per cache set.");
     }
+    let cache_lines = cache_size / block_size;
+    let words = block_size / 8;
 
     let ram = Box::new(vec![0.0;ram_size]);
+
     let cache = Box::new(vec![
       CacheLine {
-        tag:1,
+        tag:usize::max_value(),
         write_time:0,
         last_used:u64::max_value(),
-        data: Box::new(vec![0.0; (block_size / 8)])
+        data: Box::new(vec![0.0; words])
       };
-      cache_size / block_size
+      cache_lines
     ]);
 
-    Cpu{cache_size, block_size, associativity, replacement, read_hits:0, read_misses:0,
-        write_hits:0, write_misses:0, time:0, ram, cache}
+    Cpu{cache_size, block_size, associativity, replacement, cache_lines, words,
+        read_hits:0, read_misses:0, write_hits:0, write_misses:0, time:0, ram, cache}
+  }
+
+  pub fn reset_counters(&mut self){
+    // Resets cache activity counters.
+    self.read_hits = 0;
+    self.read_misses = 0;
+    self.write_hits = 0;
+    self.write_misses = 0;
+    info!("Reset read/write hit/miss counters")
+  }
+
+  pub fn reset_cache(&mut self){
+    // Resets cache and time counter. Does not clear cache (its now junk data).
+    self.time = 0;
+    for line in 0 .. self.cache_lines {
+      self.cache[line].write_time = 0;
+      self.cache[line].last_used = u64::max_value();
+      self.cache[line].tag = usize::max_value();
+    }
+    info!("Reset cache")
   }
 
   fn parts(&self, address: usize) -> (usize, usize, usize) {
     /* Returns tag, index, and offset numbers from address. */
 
-    let words = self.block_size / 8;
-    let offset = address % words ;
-    let ram_line = address / words;
+    let offset = address % self.words ;
+    let ram_line = address / self.words;
 
-    let n_sets = self.cache_size / self.block_size / self.associativity;
+    let n_sets = self.cache_lines / self.associativity;
     let index = ram_line % n_sets;
 
-    let tag = address / n_sets / words;
+    let tag = address / n_sets / self.words;
 
     (tag, index, offset)
   }
@@ -97,7 +123,7 @@ impl Cpu {
      */
     for line in index * self.associativity .. (index + 1) * self.associativity {
       if tag == self.cache[line].tag {
-        debug!("Hit {:?} at cache line {:?}", (tag,index), line);
+        debug!("Hit tag:{:?}, index:{:?} at cache line {:?}", tag, index, line);
         return Ok(line);
       }
     }
@@ -139,7 +165,7 @@ impl Cpu {
         first_line
       }
     };
-    debug!("Miss {:?} replacement line {:?}", (tag, index), replacement);
+    debug!("MISS tag:{:?}, index:{:?}. Replacement line {:?}", tag, index, replacement);
     Err(replacement)
   }
 

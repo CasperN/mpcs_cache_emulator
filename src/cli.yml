@@ -7,36 +7,47 @@ args:
     - cache-size:
         help: "The size of the cache in bytes (default: 65536)"
         short: c
+        long: cache-size
         takes_value: true
 
     - block-size:
         help: "The size of a data block in bytes (default: 64)"
         short: b
+        long: block-size
         takes_value: true
 
     - associativity:
         help: "The n-way associativity of the cache. `--n-assoc 1` is a direct-mapped cache. (default: 2)"
         short: n
+        long: n-assoc
         takes_value: true
 
     - replacement:
         help: "The replacement policy. Can be `random`, `FIFO`, or `LRU`. (default: `LRU`)"
         short: r
+        long: replacement
         takes_value: true
         possible_values: [random, FIFO, LRU]
 
     - algorithm:
         help: "The algorithm to simulate. Can be `dot` (dot product), `mxm` (matrix-matrix multiplication), `mxm-block` (mxm with blocking). (default: `mxm`)"
         short: a
+        long: algorithm
         takes_value: true
         possible_values: [dot, mxm, mxm-block]
 
     - ram-size:
         help: "How many doubles may fit into ram (default 1,048,576)."
         short: m
+        long: ram-size
         takes_value: true
 
     - test-size:
         help: "length of vector, or side length of matrix (default 64)"
         short: t
+        long: test-size
         takes_value: true
+
+    - count-initialization:
+        help: "count initialization of random vectors / matricies in cache read/write hits/misses."
+        short: i

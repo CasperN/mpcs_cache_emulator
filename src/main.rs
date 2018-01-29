@@ -45,6 +45,7 @@ fn main() {
   // algorithm related flags
   let test_size = parse_default(flags.value_of("test-size"), 64);
   let algorithm = flags.value_of("algorithm").unwrap_or("mxm");
+  let reset = flags.occurrences_of("count-initialization") == 0;
 
   info!("CPU Parameters:   cache_size\t{:?}", cache_size);
   info!("CPU Parameters:   block_size\t{:?}", block_size);
@@ -55,18 +56,23 @@ fn main() {
   info!("Test Parameters:  test_size\t{:?}", test_size);
 
   let mut cpu = Cpu::new(cache_size, block_size, associativity, replacement, ram_size);
+  info!("Cpu Attributes:   words / block\t{:?}", cpu.words);
+  info!("Cpu Attributes:   cache_lines\t{:?}", cpu.cache_lines);
 
   match algorithm {
     "dot" => {
-      store_random_numbers(&mut cpu, 2 * test_size);
+      store_random_numbers(&mut cpu, 2 * test_size, reset);
+      info!("Emulating...");
       dot(&mut cpu, test_size);
     },
     "mxm-block" => {
-      store_random_numbers(&mut cpu, 2 * test_size * test_size);
+      store_random_numbers(&mut cpu, 2 * test_size * test_size, reset);
+      info!("Emulating...");
       mxm_block(&mut cpu, test_size, 4);
     },
     "mxm" => {
-      store_random_numbers(&mut cpu, 2 * test_size * test_size);
+      store_random_numbers(&mut cpu, 2 * test_size * test_size, reset);
+      info!("Emulating...");
       mxm(&mut cpu, test_size);
     }
     _ => unreachable!()
