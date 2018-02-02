@@ -1,13 +1,11 @@
----
-output: pdf-document
-geometry: margin=2cm
----
 Casper Neo \
 MPCS 52010 Computer Architecture \
 2018 February 2
 
+This is my cache emulator project for MPCS 52010 Computer Architecture.
+
 # Analysis
-I did it in a jupyter notebook so you can run the code through jupyter if you have it installed. If not... See `analysis.pdf`. The first part is just code for graphing, then I run the cache emulator a bunch and graph results. I have bullet points describing the results.
+See Jupyter notebook `analysis.ipynb` or the pdf version `analysis.pdf`.
 
 # Rust
 Installation: https://www.rust-lang.org/en-US/install.html
