@@ -74,27 +74,27 @@ pub fn mxm_block(cpu: &mut Cpu, n:usize, block_size:usize) {
 #[cfg(test)]
 mod test {
   use super::*;
-  use cpu::ReplacementPolicy::LRU;
+  use cpu::ReplacementPolicy::Random;
 
   #[test]
   fn test_dot_product() {
-    let mut cpu = Cpu::new(512, 64, 8, LRU, 128);
+    let mut cpu = Cpu::new(512, 64, 8, Random, 128);
 
     for i in 0..8 {
-      cpu.ram[i] = 2.0;
+      cpu.ram[i] = i as f64;
       cpu.ram[i + 8] = 4.0;
     }
 
     dot(&mut cpu, 8);
 
     for i in 16 .. 24{
-      assert!((cpu.load(i) - 8.0).abs() < 0.0000001, cpu.load(i));
+      assert!((cpu.load(i) - (i - 16) as f64 * 4.0).abs() < 0.0000001, cpu.load(i));
     }
   }
 
   #[test]
   fn test_mxm() {
-    let mut cpu = Cpu::new(512, 64, 8, LRU, 512);
+    let mut cpu = Cpu::new(512, 64, 8, Random, 512);
     for i in 0..64 {
       cpu.ram[i] = 2.0;
       cpu.ram[i+ 64] = 3.0;
@@ -107,7 +107,7 @@ mod test {
 
   #[test]
   fn test_mxm_block() {
-    let mut cpu = Cpu::new(512, 64, 8, LRU, 512);
+    let mut cpu = Cpu::new(512, 64, 8, Random, 512);
     for i in 0..64 {
       cpu.ram[i] = 2.0;
       cpu.ram[i + 64] = 3.0;

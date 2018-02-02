@@ -62,7 +62,7 @@ impl Cpu {
       CacheLine {
         tag:usize::max_value(),
         write_time:0,
-        last_used:u64::max_value(),
+        last_used:0,
         data: Box::new(vec![0.0; words])
       };
       cache_lines
@@ -132,11 +132,11 @@ impl Cpu {
 
       ReplacementPolicy::LRU => {
         // Replace least-recently-used line
-        let mut lru_time = 0;
-        let mut lru_line = 0;
+        let mut lru_time = u64::max_value();
+        let mut lru_line = index * self.associativity;
 
         for line in index * self.associativity .. (index + 1) * self.associativity {
-          if self.cache[line].last_used >= lru_time {
+          if self.cache[line].last_used < lru_time {
             lru_time = self.cache[line].last_used;
             lru_line = line;
           }
