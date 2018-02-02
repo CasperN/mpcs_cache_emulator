@@ -5,7 +5,7 @@ extern crate log;
 #[macro_use]
 extern crate clap;
 extern crate pretty_env_logger;
-
+use std::time::SystemTime;
 
 mod cpu;
 mod algorithms;
@@ -34,7 +34,6 @@ fn main() {
   // CPU related flags
   let cache_size = parse_default(flags.value_of("cache-size"), 65536);
   let block_size = parse_default(flags.value_of("block-size"), 64);
-  let ram_size = parse_default(flags.value_of("ram-size"), 1_048_576);
   let associativity = parse_default(flags.value_of("associativity"), 2);
   let replacement = match flags.value_of("replacement").unwrap_or("LRU") {
     "FIFO"   => cpu::ReplacementPolicy::FIFO,
@@ -43,9 +42,9 @@ fn main() {
     _ => unreachable!()
   };
   // algorithm related flags
-  let test_size = parse_default(flags.value_of("test-size"), 64);
   let algorithm = flags.value_of("algorithm").unwrap_or("mxm");
-  let reset = flags.occurrences_of("count-initialization") == 0;
+  let test_size = parse_default(flags.value_of("test-size"), 500);
+  let ram_size = (3 * test_size * test_size as usize).next_power_of_two();
 
   info!("CPU Parameters:   cache_size\t{:?}", cache_size);
   info!("CPU Parameters:   block_size\t{:?}", block_size);
@@ -59,27 +58,20 @@ fn main() {
   info!("Cpu Attributes:   words / block\t{:?}", cpu.words);
   info!("Cpu Attributes:   cache_lines\t{:?}", cpu.cache_lines);
 
+  info!("Storing random numbers...");
+  store_random_numbers(&mut cpu, 2 * test_size * test_size);
+
+  info!("Emulating...");
+  let start = SystemTime::now();
   match algorithm {
-    "dot" => {
-      store_random_numbers(&mut cpu, 2 * test_size, reset);
-      info!("Emulating...");
-      dot(&mut cpu, test_size);
-    },
-    "mxm-block" => {
-      store_random_numbers(&mut cpu, 2 * test_size * test_size, reset);
-      info!("Emulating...");
-      mxm_block(&mut cpu, test_size, 4);
-    },
-    "mxm" => {
-      store_random_numbers(&mut cpu, 2 * test_size * test_size, reset);
-      info!("Emulating...");
-      mxm(&mut cpu, test_size);
-    }
+    "dot" => dot(&mut cpu, test_size * test_size),
+    "mxm" => mxm(&mut cpu, test_size),
+    "mxm-block" => mxm_block(&mut cpu, test_size, 8),
     _ => unreachable!()
   };
-
-  println!("\nResults:");
-  println!("  read hits\t{:?}\n  read misses\t{:?}\n  write hits\t{:?}\n  write misses\t{:?}\n",
-    cpu.read_hits, cpu.read_misses, cpu.write_hits, cpu.write_misses );
+  println!("\nTime Elapsed {:?}", start.elapsed().unwrap());
+  println!("Results:");
+  println!("  read hits\t{:?}\n  read misses\t{:?}\n  write hits\t{:?}\n  write misses\t{:?}\n  instruction count\t{:?}\n",
+    cpu.read_hits, cpu.read_misses, cpu.write_hits, cpu.write_misses, cpu.instruction_number );
 
 }

@@ -35,9 +35,10 @@ pub struct Cpu{
   pub read_misses: u64,
   pub write_hits: u64,
   pub write_misses: u64,
-  time: u64,
+  pub instruction_number: u64,
 
-  ram: Box<Vec<f64>>, // Index in `self.ram` is the address
+  // Datastructures
+  pub ram: Box<Vec<f64>>, // Public to initialize random f64s
   cache: Box<Vec<CacheLine>>
 }
 
@@ -45,26 +46,16 @@ impl Cpu {
   pub fn new(cache_size: usize, block_size: usize, associativity: usize,
     replacement: ReplacementPolicy, ram_size: usize) -> Cpu {
     /* Builds a new CPU */
-
-    if block_size % 8 != 0 {
-      error!("block_size {:?} bytes is not multiple of 8.", block_size);
-    }
-    if ram_size % block_size != 0 {
-      error!("ram_size {:?} not divisible by block_size {:?}.", ram_size, block_size);
-    }
-    if cache_size % block_size != 0 {
-      error!("cache_size {:?} not divisible by block_size {:?}", cache_size, block_size);
-    }
-    if (cache_size / block_size) < associativity {
-      error!("associativity {:?} greater than number of cache lines {:?}",
-        associativity, (cache_size / block_size));
-    }
-    if (cache_size / block_size) % associativity != 0 {
-      error!("uneven cache lines per cache set.");
-    }
+    assert_eq!(block_size % 8, 0,
+      "block_size: {:?} bytes is not a multiple of 8 bytes (each word is an f64)", block_size);
+    assert_eq!(ram_size % block_size, 0,
+      "ram_size {:?} not divisible by block_size {:?}.", ram_size, block_size);
+    assert_eq!(cache_size % block_size, 0,
+      "cache_size {:?} not divisible by block_size {:?}", cache_size, block_size);
     let cache_lines = cache_size / block_size;
-    let words = block_size / 8;
+    assert_eq!(cache_lines % associativity, 0, "uneven cache lines per cache set.");
 
+    let words = block_size / 8;
     let ram = Box::new(vec![0.0;ram_size]);
 
     let cache = Box::new(vec![
@@ -78,9 +69,10 @@ impl Cpu {
     ]);
 
     Cpu{cache_size, block_size, associativity, replacement, cache_lines, words,
-        read_hits:0, read_misses:0, write_hits:0, write_misses:0, time:0, ram, cache}
+        read_hits:0, read_misses:0, write_hits:0, write_misses:0, instruction_number:0, ram, cache}
   }
 
+  #[allow(dead_code)] // Unused
   pub fn reset_counters(&mut self){
     // Resets cache activity counters.
     self.read_hits = 0;
@@ -90,9 +82,10 @@ impl Cpu {
     info!("Reset read/write hit/miss counters")
   }
 
+  #[allow(dead_code)] // Unused
   pub fn reset_cache(&mut self){
     // Resets cache and time counter. Does not clear cache (its now junk data).
-    self.time = 0;
+    self.instruction_number = 0;
     for line in 0 .. self.cache_lines {
       self.cache[line].write_time = 0;
       self.cache[line].last_used = u64::max_value();
@@ -143,7 +136,7 @@ impl Cpu {
         let mut lru_line = 0;
 
         for line in index * self.associativity .. (index + 1) * self.associativity {
-          if self.cache[line].last_used > lru_time {
+          if self.cache[line].last_used >= lru_time {
             lru_time = self.cache[line].last_used;
             lru_line = line;
           }
@@ -165,7 +158,7 @@ impl Cpu {
         first_line
       }
     };
-    debug!("MISS tag:{:?}, index:{:?}. Replacement line {:?}", tag, index, replacement);
+    debug!("Miss tag:{:?}, index:{:?}. Replacement line {:?}", tag, index, replacement);
     Err(replacement)
   }
 
@@ -173,27 +166,26 @@ impl Cpu {
     /* Handles cache misses and returns a line and offset thats loaded with the address. */
     let (tag, index, offset) = self.parts(address);
     let (line, is_hit) = match self.check_cache(tag, index) {
-      Ok(line) => { (line, true) }
+      Ok(line) => (line, true),
       Err(replacement) => {
         // Copy ram line into cache
-        let words = self.block_size / 8;
-        let r = address - address % words;
-        for (i, v) in self.ram[r .. r + words].iter().enumerate(){
-          self.cache[replacement].data[i] = *v;
+        let r = address - address % self.words;
+        for i in 0 .. self.words {
+          self.cache[replacement].data[i] = self.ram[r + i];
         }
         self.cache[replacement].tag = tag;
-        self.cache[replacement].write_time = self.time;
+        self.cache[replacement].write_time = self.instruction_number;
         (replacement, false)
       }
     };
-    self.cache[line].last_used = self.time;
+    self.cache[line].last_used = self.instruction_number;
     (line, offset, is_hit)
   }
 
   pub fn load(&mut self, address: usize) -> f64 {
     // Load from cache if there, else, load from RAM.
     debug!("Loading address {:?} ", address);
-    self.time += 1;
+    self.instruction_number += 1;
     let (line, offset, is_hit) = self.get_cache(address);
     if is_hit { self.read_hits += 1 } else { self.read_misses += 1 }
     self.cache[line].data[offset]
@@ -202,12 +194,12 @@ impl Cpu {
   pub fn store(&mut self, address: usize, value: f64) {
     // Store value in Ram and load into cache (Write-through with Write-allocate)
     debug!("Storing {:?} to {:?}", value, address);
-    self.time += 1;
+    self.instruction_number += 1;
     self.ram[address] = value; // Write through
     let (line, offset, is_hit) = self.get_cache(address); // write allocate
     if is_hit { self.write_hits += 1 } else { self.write_misses += 1 }
     self.cache[line].data[offset] = value;
-    self.cache[line].write_time = self.time;
+    self.cache[line].write_time = self.instruction_number;
   }
 }
 

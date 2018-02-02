@@ -36,18 +36,8 @@ args:
         takes_value: true
         possible_values: [dot, mxm, mxm-block]
 
-    - ram-size:
-        help: "How many doubles may fit into ram (default 1,048,576)."
-        short: m
-        long: ram-size
-        takes_value: true
-
     - test-size:
-        help: "length of vector, or side length of matrix (default 64)"
+        help: "side length of matrix or square root length of vector to dot. (default 500)"
         short: t
         long: test-size
         takes_value: true
-
-    - count-initialization:
-        help: "count initialization of random vectors / matricies in cache read/write hits/misses."
-        short: i

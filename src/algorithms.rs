@@ -7,16 +7,12 @@ use self::rand::{thread_rng, Rng};
 
 use cpu::Cpu;
 
-pub fn store_random_numbers(cpu: &mut Cpu, n:usize, reset:bool) {
+pub fn store_random_numbers(cpu: &mut Cpu, n:usize) {
   // Fills `cpu` with `n` random f64s. if `reset`, resets cache and cpu counters.
   info!("Storing {:?} random f64s to cpu", n);
   let mut rng = thread_rng();
   for i in 0 .. n {
-    cpu.store(i, rng.next_f64());
-  }
-  if reset {
-    cpu.reset_cache();
-    cpu.reset_counters();
+    cpu.ram[i] = rng.next_f64();
   }
 }
 
@@ -51,11 +47,12 @@ pub fn mxm_block(cpu: &mut Cpu, n:usize, block_size:usize) {
   let idx_a = |i,j| i * n + j;
   let idx_b = |i,j| i * n + j + n * n;
   let idx_c = |i,j| i * n + j + n * n * 2;
+  let num_blocks = max(n / block_size, 1);
 
   // For each block
-  for si in 0 .. max(n / block_size, 1) {
-    for sj in 0 .. max(n / block_size, 1) {
-      for sk in 0 .. max(n / block_size, 1) {
+  for si in 0 .. num_blocks {
+    for sj in 0 .. num_blocks {
+      for sk in 0 .. num_blocks {
         // Do the normal matrix multiply
         for i in si * block_size .. min((si + 1) * block_size, n) {
           for j in sj * block_size .. min((sj + 1) * block_size, n) {
@@ -65,7 +62,7 @@ pub fn mxm_block(cpu: &mut Cpu, n:usize, block_size:usize) {
             for k in sk * block_size .. min((sk + 1) * block_size, n) {
               cij += cpu.load(idx_a(i,j)) * cpu.load(idx_b(j,k));
             }
-            
+
             cpu.store(idx_c(i,j), cij);
           }
         }
@@ -84,8 +81,8 @@ mod test {
     let mut cpu = Cpu::new(512, 64, 8, LRU, 128);
 
     for i in 0..8 {
-      cpu.store(i, 2.0);
-      cpu.store(i + 8, 4.0);
+      cpu.ram[i] = 2.0;
+      cpu.ram[i + 8] = 4.0;
     }
 
     dot(&mut cpu, 8);
@@ -99,8 +96,8 @@ mod test {
   fn test_mxm() {
     let mut cpu = Cpu::new(512, 64, 8, LRU, 512);
     for i in 0..64 {
-      cpu.store(i, 2.0);
-      cpu.store(i + 64, 3.0);
+      cpu.ram[i] = 2.0;
+      cpu.ram[i+ 64] = 3.0;
     }
     mxm(&mut cpu, 8);
     for i in (64 * 2) .. (64 * 3) {
@@ -112,8 +109,8 @@ mod test {
   fn test_mxm_block() {
     let mut cpu = Cpu::new(512, 64, 8, LRU, 512);
     for i in 0..64 {
-      cpu.store(i, 2.0);
-      cpu.store(i + 64, 3.0);
+      cpu.ram[i] = 2.0;
+      cpu.ram[i + 64] = 3.0;
     }
     mxm_block(&mut cpu, 8, 4);
     for i in (64 * 2) .. (64 * 3){
